@@ -1,0 +1,74 @@
+---
+- name: Update yum repo
+  yum: 
+    name: "*"
+    state: latest
+
+
+
+- name: Create Prometheus user
+  shell:
+    useradd --no-create-home --shell /bin/false prometheus
+    mkdir /etc/prometheus
+    mkdir /var/lib/prometheus
+    chown prometheus:prometheus /etc/prometheus
+    chowm prometheus:prometheus /var/lib/prometheus
+
+
+- name: Download file from a path
+  get_url:
+    url: https://github.com/prometheus/prometheus/releases/download
+    dest: /home/ec2-user/prometheus-2.3.2.linux-amd64.tar.gz
+
+- name: Extract tar
+  unarchive:
+  src: /home/ec2-user/prometheus-2.3.2.linux-amd64.tar.gz
+  dest: /home/ec2-user/
+  remote_src: yes
+
+- name: Move prometheus
+  shell:
+    rm -rf prometheus-files
+    mv /home/ec2-user/prometheus-2.3.2.linux-amd64 prometheus-files
+
+- name: Move files
+  shell:
+    cp prometheus-files/prometheus /usr/local/bin/
+    cp prometheus-files/promtool /usr/local/bin
+    chown prometheus:prometheus /usr/local/bin/
+    chown prometheus:prometheus /usr/local/bin/promtool
+    cp -r prometheus-files/consoles /etc/prometheus
+    cp -r prometheus-files/console_libraries /etc/prometheus
+    chowm -R prometheus:prometheus /etc/prometheus/consoles
+    chowm -R prometheus:prometheus /etc/prometheus/console_libraries
+
+
+- name: Prepare DB Directory
+  shell:
+    mkdir /opt/prometheus-setup/
+    chown -R prometheus:prometheus /opt/prometheus-setup/
+
+
+- name: Copy Prometheus.yml
+  become:  true
+  copy: 
+    src: prometheus.yml
+    dest: /etc/prometheus
+
+- name: copy Prometheus.service
+  become: true
+  copy:
+    src: prometheus.service
+    dest: /etc/systemd/system/
+
+
+- name: Change ownership of service and config files
+  shell:
+    chown prometheus:prometheus /etc/prometheus/prometheus.yml
+    chowm prometheus:prometheus /etc/systemd/system/prometheus.service
+
+- name: Reload Prometheus to register changes
+  shell:
+    systemctl daemon-reload
+    systemctl start prometheus
+    systemctl status prometheus

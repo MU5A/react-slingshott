@@ -1,1 +1,2 @@
-hosts
+[web]
+ec2-3-83-227-84.compute-1.amazonaws.com
